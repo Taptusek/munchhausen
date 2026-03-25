@@ -58,10 +58,15 @@ def main():
                 # Czas na naładowanie/rozładowanie pojemności prądu bramki tranzystora MOSFET
                 time.sleep(0.15)
                 
-                # Czas zaszalał – odczyt punktu pracy panelu fotowoltaicznego badany przez INA219!
+                # Odczyt niezależny od kalibracji wewnętrznej układu INA219
                 v = ina.bus_voltage
-                i = ina.current
-                p = v * i # Ręczne policzenie mocy (P = U * I), by wyhaczyć precyzyjnie mikrowaty
+                
+                # Zamiast .current, czytamy surowe napięcie bocznika pomiarowego (shunt_voltage zwraca zazwyczaj Volty)
+                v_shunt = ina.shunt_voltage
+                # Standardowy opornik R100 na tanich płytkach ma opór 0.1 Ohma. Natężenie ze wzoru Ohma: I = U/R
+                i = (v_shunt / 0.1) * 1000.0 # Wynik przerzucony na miliAmpery (mA)
+                
+                p = v * i # Ręczne policzenie mocy w miliWatach (P = U * I)
                 
                 # Zerowanie ujemnych odczytów prądu by uniknąć spadków krzywej przez nagłe szumy tła (zera obwodowego)
                 i = max(0.0, i)
@@ -89,7 +94,13 @@ def main():
         color = 'tab:red'
         ax1.set_xlabel('Napięcie Panelu Słonecznego [V]')
         ax1.set_ylabel('Prąd Pobierany przez układ [mA]', color=color)
-        ax1.plot(voltages, currents, color=color, marker='o', linestyle='-', markersize=4, label="Prąd złącza I-V")
+        # Sortowanie danych po napięciu rosnąco przed wyrysowaniem linii by wykres nie "cofał się" przez szum odczytów
+        sorted_data = sorted(zip(voltages, currents, powers))
+        v_sorted = [x[0] for x in sorted_data]
+        i_sorted = [x[1] for x in sorted_data]
+        p_sorted = [x[2] for x in sorted_data]
+
+        ax1.plot(v_sorted, i_sorted, color=color, marker='o', linestyle='-', markersize=4, label="Prąd złącza I-V")
         ax1.tick_params(axis='y', labelcolor=color)
         ax1.grid(True)
     
@@ -97,7 +108,7 @@ def main():
         ax2 = ax1.twinx()  
         color = 'tab:blue'
         ax2.set_ylabel('Moc Emitowana [mW]', color=color)  
-        ax2.plot(voltages, powers, color=color, marker='s', linestyle='--', markersize=4, label="Moc złącza P-V")
+        ax2.plot(v_sorted, p_sorted, color=color, marker='s', linestyle='--', markersize=4, label="Moc złącza P-V")
         ax2.tick_params(axis='y', labelcolor=color)
     
         fig.tight_layout()  
