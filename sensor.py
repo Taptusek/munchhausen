@@ -12,6 +12,9 @@ import meshtastic.serial_interface
 import adafruit_dht
 
 USE_GUI = "-nogui" not in sys.argv
+USE_LORA = "-nolora" not in sys.argv
+USE_GPS = "-nogps" not in sys.argv
+
 if USE_GUI:
     try:
         import matplotlib.pyplot as plt
@@ -99,24 +102,32 @@ except Exception as e:
 dht_sensor = adafruit_dht.DHT11(board.D4)
 
 # 5. LoRa Meshtastic (XIAO nRF52840 przez USB)
-try:
-    # Automatyczne połączenie ze znalezionym urządzeniem na portach USB.
-    meshtastic_node = meshtastic.serial_interface.SerialInterface()
-    print("[OK] Połączono z modułem Meshtastic przez port USB API.")
-except Exception as e:
+if USE_LORA:
+    try:
+        # Automatyczne połączenie ze znalezionym urządzeniem na portach USB.
+        meshtastic_node = meshtastic.serial_interface.SerialInterface()
+        print("[OK] Połączono z modułem Meshtastic przez port USB API.")
+    except Exception as e:
+        meshtastic_node = None
+        print(f"[!] Błąd połączenia z modułem Meshtastic: {e}. Sprawdź kabel USB.")
+else:
     meshtastic_node = None
-    print(f"[!] Błąd połączenia z modułem Meshtastic: {e}. Sprawdź kabel USB.")
+    print("[i] Moduł LoRa Meshtastic pominięty na życzenie (-nolora).")
 
 # 6. GPS Air530 (UART)
-try:
-    # Zmień '/dev/ttyUSB0' na właściwy port podłączenia GPS (np. '/dev/serial1' lub '/dev/ttyS0').
-    uart_gps = serial.Serial('/dev/ttyUSB0', baudrate=9600, timeout=1)
-    gps = adafruit_gps.GPS(uart_gps, debug=False)
-    # Uruchomienie domyślne. Czysty odczyt NMEA.
-    print("[OK] GPS Air530 zainicjowany na /dev/ttyUSB0 (9600 bps).")
-except Exception as e:
+if USE_GPS:
+    try:
+        # Zmień '/dev/ttyUSB0' na właściwy port podłączenia GPS (np. '/dev/serial1' lub '/dev/ttyS0').
+        uart_gps = serial.Serial('/dev/ttyUSB0', baudrate=9600, timeout=1)
+        gps = adafruit_gps.GPS(uart_gps, debug=False)
+        # Uruchomienie domyślne. Czysty odczyt NMEA.
+        print("[OK] GPS Air530 zainicjowany na /dev/ttyUSB0 (9600 bps).")
+    except Exception as e:
+        gps = None
+        print(f"[!] Błąd inicjalizacji GPS Air530: {e}.")
+else:
     gps = None
-    print(f"[!] Błąd inicjalizacji GPS Air530: {e}.")
+    print("[i] Moduł GPS Air530 pominięty na życzenie (-nogps).")
 
 def main():
     print("\nRozpoczynam zbieranie danych. Ctrl+C przerywa program.\n")
